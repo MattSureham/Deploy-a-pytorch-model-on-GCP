@@ -1,6 +1,5 @@
-# Test script for MNIST API
 """
-Test the deployed MNIST classifier API
+Test script for YOLOv5 Object Detection API
 """
 
 import requests
@@ -8,12 +7,12 @@ import base64
 import sys
 from PIL import Image
 import io
-import numpy as np
+import json
 
 
 def test_health(endpoint_url):
     """Test health endpoint"""
-    print("Testing health endpoint...")
+    print("🏥 Testing health endpoint...")
     response = requests.get(f"{endpoint_url}/health")
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
@@ -21,90 +20,106 @@ def test_health(endpoint_url):
     print("✅ Health check passed\n")
 
 
-def test_predict_file(endpoint_url, image_path):
-    """Test prediction with file upload"""
-    print(f"Testing prediction with file: {image_path}")
+def test_root(endpoint_url):
+    """Test root endpoint"""
+    print("ℹ️  Testing root endpoint...")
+    response = requests.get(f"{endpoint_url}/")
+    print(f"Status: {response.status_code}")
+    data = response.json()
+    print(f"Service: {data.get('service')}")
+    print(f"Model: {data.get('model')}")
+    print("✅ Root endpoint working\n")
+
+
+def test_detect_file(endpoint_url, image_url):
+    """Test detection with image from URL"""
+    print(f"🔍 Testing detection with image: {image_url}")
     
-    with open(image_path, 'rb') as f:
-        files = {'file': ('image.png', f, 'image/png')}
-        response = requests.post(f"{endpoint_url}/predict", files=files)
+    # Download image
+    img_response = requests.get(image_url)
+    img_response.raise_for_status()
+    
+    # Send to API
+    files = {'file': ('test.jpg', img_response.content, 'image/jpeg')}
+    response = requests.post(f"{endpoint_url}/detect", files=files)
     
     print(f"Status: {response.status_code}")
     result = response.json()
-    print(f"Response: {result}")
+    
+    print(f"Objects detected: {result['num_detections']}")
+    for det in result['detections'][:5]:  # Show first 5
+        print(f"  - {det['class']}: {det['confidence']:.2%}")
     
     assert response.status_code == 200
     assert result['success'] == True
-    assert 'predicted_digit' in result
-    print(f"✅ Prediction successful: Digit {result['predicted_digit']} with confidence {result['confidence']}\n")
-    
+    print("✅ Detection successful\n")
     return result
 
 
-def test_predict_base64(endpoint_url, image_path):
-    """Test prediction with base64 encoded image"""
-    print(f"Testing prediction with base64: {image_path}")
+def test_detect_visualize(endpoint_url, image_url):
+    """Test visualization endpoint"""
+    print("🎨 Testing visualization endpoint...")
     
-    with open(image_path, 'rb') as f:
-        image_data = f.read()
-        base64_string = base64.b64encode(image_data).decode('utf-8')
+    # Download image
+    img_response = requests.get(image_url)
     
-    response = requests.post(
-        f"{endpoint_url}/predict_base64",
-        json={"image_base64": base64_string}
-    )
+    # Send to API
+    files = {'file': ('test.jpg', img_response.content, 'image/jpeg')}
+    response = requests.post(f"{endpoint_url}/detect/visualize", files=files)
     
     print(f"Status: {response.status_code}")
-    result = response.json()
-    print(f"Response: {result}")
+    print(f"Content-Type: {response.headers.get('content-type')}")
+    print(f"Detections: {response.headers.get('X-Detections')}")
+    
+    # Save output
+    with open('output_detected.png', 'wb') as f:
+        f.write(response.content)
+    print("Saved to: output_detected.png")
     
     assert response.status_code == 200
-    print("✅ Base64 prediction successful\n")
+    print("✅ Visualization successful\n")
 
 
-def create_test_image(digit_size=20):
-    """Create a simple test image (a white digit on black background)"""
-    # Create a simple test image
-    img = Image.new('L', (28, 28), color=0)  # Black background
-    
-    # Draw a simple pattern (simulates a digit)
-    pixels = img.load()
-    for i in range(8, 20):
-        for j in range(8, 20):
-            pixels[i, j] = 255  # White square in middle
-    
-    return img
+def test_classes(endpoint_url):
+    """Test classes endpoint"""
+    print("📋 Testing classes endpoint...")
+    response = requests.get(f"{endpoint_url}/classes")
+    print(f"Status: {response.status_code}")
+    data = response.json()
+    print(f"Number of classes: {data['num_classes']}")
+    print(f"Sample classes: {', '.join(data['classes'][:10])}...")
+    print("✅ Classes endpoint working\n")
 
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python test_api.py <endpoint_url>")
-        print("Example: python test_api.py https://mnist-classifier-xxx-uc.a.run.app")
+        print("Example: python test_api.py http://localhost:8080")
+        print("Example: python test_api.py https://myapp-xxx-uc.a.run.app")
         sys.exit(1)
     
     endpoint_url = sys.argv[1].rstrip('/')
     
-    print("🧪 Testing MNIST Classifier API")
+    # Test image (bus with people)
+    test_image_url = "https://ultralytics.com/images/bus.jpg"
+    
+    print("🧪 Testing YOLOv5 Object Detection API")
     print("=" * 50)
-    print(f"Endpoint: {endpoint_url}\n")
+    print(f"Endpoint: {endpoint_url}")
+    print(f"Test image: {test_image_url}\n")
     
     try:
-        # Test health
+        # Run tests
         test_health(endpoint_url)
-        
-        # Create and save test image
-        test_img = create_test_image()
-        test_img.save('test_image.png')
-        print("Created test image: test_image.png\n")
-        
-        # Test file upload
-        test_predict_file(endpoint_url, 'test_image.png')
-        
-        # Test base64
-        test_predict_base64(endpoint_url, 'test_image.png')
+        test_root(endpoint_url)
+        test_classes(endpoint_url)
+        test_detect_file(endpoint_url, test_image_url)
+        test_detect_visualize(endpoint_url, test_image_url)
         
         print("=" * 50)
         print("✅ All tests passed!")
+        print("\nExample usage:")
+        print(f"  curl -X POST '{endpoint_url}/detect' -F 'file=@your_image.jpg'")
         
     except requests.exceptions.RequestException as e:
         print(f"❌ Request failed: {e}")
@@ -112,11 +127,6 @@ def main():
     except AssertionError as e:
         print(f"❌ Test assertion failed: {e}")
         sys.exit(1)
-    finally:
-        # Cleanup
-        import os
-        if os.path.exists('test_image.png'):
-            os.remove('test_image.png')
 
 
 if __name__ == "__main__":
