@@ -1,0 +1,44 @@
+# Project files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Model files (large binaries)
+*.pth
+*.pt
+*.ckpt
+model/
+
+# Data
+data/
+*.png
+*.jpg
+*.jpeg
+!test_image.png
+
+# Environment
+.env
+.env.local
+
+# GCP
+.gcloud/
+
+# Logs
+*.log

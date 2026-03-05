@@ -1,0 +1,13 @@
+# PyTorch and dependencies
+torch>=1.12.0
+torchvision>=0.13.0
+numpy>=1.21.0
+Pillow>=9.0.0
+
+# FastAPI and server
+fastapi>=0.85.0
+uvicorn[standard]>=0.18.0
+python-multipart>=0.0.5
+
+# For GCP deployment
+gunicorn>=20.1.0
